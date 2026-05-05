@@ -61,17 +61,26 @@ const updateLeadStatus = async (req, res) => {
     lead.status = status || lead.status;
     const updatedLead = await lead.save();
 
-    // Create a FollowUp entry if status is a follow-up type or if details are provided
+    // Create a FollowUp entry if status is a follow-up type
     const followUpStatuses = ["interested", "callback", "follow_up"];
-    if (followUpStatuses.includes(status) || followUpNote || followUpDate) {
-      const defaultDate = new Date();
-      defaultDate.setHours(defaultDate.getHours() + 1);
-
-      await FollowUp.create({
-        leadId: lead._id,
-        note: followUpNote || `Marked as ${status}`,
-        nextFollowUpDate: followUpDate || defaultDate,
+    if (followUpStatuses.includes(status)) {
+      // Check if a pending follow-up already exists to avoid duplicates
+      const existingFollowUp = await FollowUp.findOne({ 
+        leadId: lead._id, 
+        status: "pending" 
       });
+
+      if (!existingFollowUp) {
+        const defaultDate = new Date();
+        defaultDate.setHours(defaultDate.getHours() + 1); // Default to 1 hour from now
+
+        await FollowUp.create({
+          leadId: lead._id,
+          note: followUpNote || `System: Lead marked as ${status}`,
+          nextFollowUpDate: followUpDate || defaultDate,
+          status: "pending"
+        });
+      }
     }
 
     res.json(updatedLead);

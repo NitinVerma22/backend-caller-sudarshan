@@ -14,9 +14,35 @@ const getFollowUps = async (req, res) => {
       const userLeads = await Lead.find({ assignedTo: req.user._id }).distinct("_id");
       query = { leadId: { $in: userLeads } };
     }
+
+    // --- Self-Healing Mechanism ---
+    // If we're fetching follow-ups, let's make sure we haven't missed any "Interested" leads
+    const followUpStatuses = ["interested", "callback", "follow_up"];
+    const leadQuery = req.user.role === "telecaller" 
+      ? { assignedTo: req.user._id, status: { $in: followUpStatuses } }
+      : { status: { $in: followUpStatuses } };
+
+    const activeLeads = await Lead.find(leadQuery);
+    
+    for (const lead of activeLeads) {
+      const hasFollowUp = await FollowUp.findOne({ leadId: lead._id, status: "pending" });
+      if (!hasFollowUp) {
+        const defaultDate = new Date();
+        defaultDate.setHours(defaultDate.getHours() + 1);
+        await FollowUp.create({
+          leadId: lead._id,
+          note: `Auto-generated follow-up for ${lead.status} lead`,
+          nextFollowUpDate: defaultDate,
+          status: "pending"
+        });
+      }
+    }
+    // ------------------------------
+
     const followUps = await FollowUp.find(query)
       .populate("leadId")
       .sort({ nextFollowUpDate: 1 });
+    
     res.json(followUps);
   } catch (error) {
     res.status(500).json({ message: error.message });
