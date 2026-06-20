@@ -25,6 +25,15 @@ const leadSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
     },
+    priority: {
+      type: String,
+      enum: ["hot", "warm", "cold"],
+      default: "cold",
+    },
+    source: {
+      type: String,
+      default: "Manual",
+    },
   },
   { timestamps: true }
 );

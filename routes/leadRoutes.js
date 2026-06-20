@@ -5,6 +5,8 @@ const {
   updateLeadStatus,
   bulkCreateLeads,
   deleteLeads,
+  getLeadHistory,
+  getAnnouncement,
 } = require("../controllers/leadController");
 const { protect, admin } = require("../middleware/authMiddleware");
 const router = express.Router();
@@ -15,6 +17,8 @@ router.route("/")
   .delete(protect, admin, deleteLeads);
 
 router.route("/bulk").post(protect, admin, bulkCreateLeads);
+router.route("/announcement").get(protect, getAnnouncement);
+router.route("/:id/history").get(protect, admin, getLeadHistory);
 router.route("/:id").put(protect, updateLeadStatus);
 
 module.exports = router;

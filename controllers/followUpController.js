@@ -1,9 +1,21 @@
 const FollowUp = require("../models/FollowUp");
 const Lead = require("../models/Lead");
+const ActivityLog = require("../models/ActivityLog");
 
 const addFollowUp = async (req, res) => {
   const { leadId, note, nextFollowUpDate } = req.body;
   const followUp = await FollowUp.create({ leadId, note, nextFollowUpDate });
+
+  const lead = await Lead.findById(leadId);
+  if (lead) {
+    await ActivityLog.create({
+      user: req.user._id,
+      action: "add_followup",
+      details: `Added follow-up note for lead '${lead.name}': "${note}"`,
+      lead: lead._id,
+    });
+  }
+
   res.status(201).json(followUp);
 };
 
@@ -40,7 +52,7 @@ const getFollowUps = async (req, res) => {
     // ------------------------------
 
     const followUps = await FollowUp.find(query)
-      .populate("leadId")
+      .populate({ path: "leadId", populate: { path: "assignedTo", select: "name" } })
       .sort({ nextFollowUpDate: 1 });
     
     res.json(followUps);
@@ -66,7 +78,7 @@ const getTodayFollowUps = async (req, res) => {
       query.leadId = { $in: userLeads };
     }
 
-    const followUps = await FollowUp.find(query).populate("leadId");
+    const followUps = await FollowUp.find(query).populate({ path: "leadId", populate: { path: "assignedTo", select: "name" } });
     res.json(followUps);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -86,7 +98,7 @@ const getOverdueFollowUps = async (req, res) => {
       query.leadId = { $in: userLeads };
     }
 
-    const followUps = await FollowUp.find(query).populate("leadId");
+    const followUps = await FollowUp.find(query).populate({ path: "leadId", populate: { path: "assignedTo", select: "name" } });
     res.json(followUps);
   } catch (error) {
     res.status(500).json({ message: error.message });
